@@ -14,7 +14,9 @@ class User(db.Model):
     email = db.Column(db.String(35), unique=True, nullable=False)
     f_name = db.Column(db.String(25), nullable=False)
     l_name = db.Column(db.String(25), nullable=True)
-    budget = db.relationship("Budget", backref="user", lazy="dynamic")
+    budget = db.relationship(
+        "Budget", backref="user", lazy="dynamic", cascade="all, delete, delete-orphan"
+    )
 
 
 class Budget(db.Model):
@@ -31,4 +33,4 @@ class Budget(db.Model):
 
 
 # only run once to initialize the db
-# db.create_all()
+db.create_all()

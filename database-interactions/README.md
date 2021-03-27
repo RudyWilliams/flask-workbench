@@ -185,7 +185,10 @@ class Budget(db.Model):
         ),
     )
 ```
-First, deleting a record from the many table (Budget). Say we want to delete the second user's 'car' category (maybe she bought a car and doesn't need to save for it anymore). First let's grab that user's record:
+
+> First, deleting a record from the many table (Budget)
+
+Say we want to delete the second user's 'car' category (maybe she bought a car and doesn't need to save for it anymore). First let's grab that user's record:
 ```python
 user2_record = User.query.get(2)
 ```
@@ -229,3 +232,71 @@ Output:
 [(8, 'car'), (5, 'eat_out'), (4, 'grocery'), (6, 'rent'), (7, 'travel')]
 [(5, 'eat_out'), (4, 'grocery'), (6, 'rent'), (7, 'travel')]
 ```
+
+> Now Deleting From the One Table (User)
+
+```python
+user1_record = User.query.get(1)
+print(user1_record.user_name)
+
+db.session.delete(user1_record)
+try:
+    db.session.commit()
+except Exception as e:
+    print(e)
+    db.session.rollback()
+```
+Output:
+```
+(sqlite3.IntegrityError) NOT NULL constraint failed: budget.user_id
+[SQL: UPDATE budget SET user_id=? WHERE budget.id = ?]
+[parameters: ((None, 1), (None, 2), (None, 3))]
+(Background on this error at: http://sqlalche.me/e/14/gkpj)
+```
+"SQLAlchemy’s default behavior is to instead de-associate address1 and address2 from user1 by setting their foreign key reference to NULL." - [sqlalchemy docs](https://docs.sqlalchemy.org/en/14/orm/cascades.html#unitofwork-cascades)
+
+We need to deal with cascading. This is needed anyways so that when we delete a user, the Budget records are also removed. Also from  the docs
+
+> `delete` cascade on one-to-many relationships is often combined with `delete-orphan` cascade, which will emit a DELETE for the related row if the “child” object is deassociated from the parent. The combination of delete and delete-orphan cascade covers both situations where SQLAlchemy has to decide between setting a foreign key column to NULL versus deleting the row entirely.
+
+> An additional option, `all` indicates shorthand for "save-update, merge, refresh-expire, expunge, delete", and is often used as in "all, delete-orphan" to indicate that related objects should follow along with the parent object in all cases, and be deleted when de-associated.
+
+We need to update the model definitions. Well actually just the User model. But we delete the old DB to start fresh and re-initialize everything.
+
+```python
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True, nullable=False)
+    user_name = db.Column(db.String(15), unique=True, nullable=False)
+    password = db.Column(db.String(20), nullable=False)
+    email = db.Column(db.String(35), unique=True, nullable=False)
+    f_name = db.Column(db.String(25), nullable=False)
+    l_name = db.Column(db.String(25), nullable=True)
+    budget = db.relationship(
+        "Budget", backref="user", lazy="dynamic", cascade="all, delete, delete-orphan"
+    )
+```
+
+The `cascade="all, delete, delete-orphan"` is the only change. Now if we run the code:
+
+```python
+print([r.id for r in User.query.all()])
+user1_record = User.query.get(1)
+print(user1_record.user_name)
+
+db.session.delete(user1_record)
+try:
+    db.session.commit()
+except Exception as e:
+    print(e)
+    db.session.rollback()
+
+print([r.id for r in User.query.all()])
+```
+Output:
+```
+[1, 2]
+rudyw
+[2]
+```
+
+Looking at the tables shows that user 1 was deleted along with all records of user 1 in the Budget table.
