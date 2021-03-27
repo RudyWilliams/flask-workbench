@@ -156,3 +156,76 @@ Output:
 ```
 rudyw
 ```
+
+<hr/>
+
+**Deleting Records**
+
+Here are the model definitions:
+```python
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True, nullable=False)
+    user_name = db.Column(db.String(15), unique=True, nullable=False)
+    password = db.Column(db.String(20), nullable=False)
+    email = db.Column(db.String(35), unique=True, nullable=False)
+    f_name = db.Column(db.String(25), nullable=False)
+    l_name = db.Column(db.String(25), nullable=True)
+    budget = db.relationship("Budget", backref="user", lazy="dynamic")
+
+
+class Budget(db.Model):
+    id = db.Column(db.Integer, primary_key=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    super_category = db.Column(db.String(15), nullable=True)
+    category = db.Column(db.String(15), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id", "category", name="user_category_uniq_constraint"
+        ),
+    )
+```
+First, deleting a record from the many table (Budget). Say we want to delete the second user's 'car' category (maybe she bought a car and doesn't need to save for it anymore). First let's grab that user's record:
+```python
+user2_record = User.query.get(2)
+```
+We can use the `.budget` property to access user2's Budget data. For example, to see the `id` and `category` fields:
+```python
+print([(r.id, r.category) for r in user2_record.budget.all()])
+```
+Output:
+```
+[(8, 'car'), (5, 'eat_out'), (4, 'grocery'), (6, 'rent'), (7, 'travel')]
+```
+We see that the `id` for the 'car' `category` is 8. We don't need to know this but it's nice to check that we have the correct id for deleting.
+```python
+user2_car_budget_record = user2_record.budget.filter(Budget.category == "car").first()
+print(user2_car_budget_record.id)
+print(user2_car_budget_record.category)
+```
+Output:
+```
+8
+car
+```
+Confirms we have the correct method for getting the car record for the second user. Our actual code can then look like:
+```python
+user2_record = User.query.get(2)
+# to see in action
+print([(r.id, r.category) for r in user2_record.budget.all()])
+
+user2_car_budget_record = user2_record.budget.filter(Budget.category == "car").first()
+db.session.delete(Budget.query.get(user2_car_budget_record.id))
+try:
+    db.session.commit()
+except Exception:
+    db.session.rollback()
+
+# to see in action
+print([(r.id, r.category) for r in user2_record.budget.all()])
+```
+Output:
+```
+[(8, 'car'), (5, 'eat_out'), (4, 'grocery'), (6, 'rent'), (7, 'travel')]
+[(5, 'eat_out'), (4, 'grocery'), (6, 'rent'), (7, 'travel')]
+```

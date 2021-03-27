@@ -55,9 +55,9 @@ except Exception:
 
 # need to get user_id from query bc the rollback takes away what would be a newly created ID
 # ie there is no u2.id at this point since we rollback when seeing already have user_name
-b4u2 = Budget(user_id=2, super_category="savings", category="travel", amount="200")
+# b4u2 = Budget(user_id=2, super_category="savings", category="travel", amount="200")
 b5u2 = Budget(user_id=2, super_category="savings", category="car", amount="500")
-db.session.add(b4u2)
+# db.session.add(b4u2)
 db.session.add(b5u2)
 try:
     db.session.commit()
